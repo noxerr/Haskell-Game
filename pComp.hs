@@ -50,57 +50,43 @@ buildTauler n m = (Taula (aux n m))
         
 placeLine::Int -> Int -> Int -> TaulerJoc -> Int-> TaulerJoc -- fila, columna, tipus linea, tauler, player
 placeLine i j tipo tauler numPl
-    | (posValid i j tauler) && (v /= tipo) && (v /= 3) && (tipo > 0 ) && (tipo < 3) = setValor i j tauler numPl
+    | (posValid i j tauler) && (v /= tipo) && (v /= 3) && (tipo > 0 ) && (tipo < 3) = setValor i j tipo tauler numPl
     | otherwise = tauler
         where
         v = valorMatriz i j tauler
 
 valorMatriz  :: Int -> Int -> TaulerJoc -> Int 
-valorMatriz i j t@(Taula mat)
-     | posValid i j t = (mat!!(i+i))!!(j+j)
+valorMatriz i j tauler@(Taula mat)
+     | posValid i j tauler = (mat!!(i+i))!!(j+j)
      | otherwise = -1     
      
-setValor:: Int -> Int -> TaulerJoc-> Int -> TaulerJoc
-setValor i j t@(Taula mat) color
-    | posValida i j t = (Taula inserta)
-    | otherwise = t
+setValor:: Int -> Int -> Int -> TaulerJoc-> Int -> TaulerJoc
+setValor i j tipo tauler@(Taula mat) numPl
+    | posValid i j tauler = (Taula (updateMatrix mat tipo (i+i,j+j)))
+    | otherwise = tauler
         where
-            inserta = fst spliti ++ [novaFila] ++ drop 1 (snd spliti)
-            spliti = splitAt (i+i) mat
-            novaFila = fst splitj ++ [color] ++ drop 1 (snd splitj)
-            splitj = splitAt (j+j) (mat!!(i+i))
+            updateMatrix :: [[a]] -> a -> (Int, Int) -> [[a]]
+            updateMatrix m x (r,c) =
+              take r m ++
+              [take c (m !! r) ++ [x] ++ drop (c + 1) (m !! r)] ++
+              drop (r + 1) m
+            
         
 posValid::Int -> Int -> TaulerJoc -> Bool
-posValid i j (Taula mat) = i>=0 && ((length mat)-1 > i+i) && j>=0 && (length (mat!!i)-1 > j+j)
+posValid i j (Taula mat) = i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j)
         
 -----------------------------------------------------------------------------     
         
         
 makeMove::Int -> Int -> TaulerJoc -> Int-> TaulerJoc
-makeMove i j tauler color
-    | color /= colorCasella && colorCasella /=0 = tauler
-    | otherwise = setPos i j tauler color
-        where
-        colorCasella = getPos i j tauler
+makeMove i j tauler color = tauler
 
-
-setPos:: Int -> Int -> TaulerJoc-> Int -> TaulerJoc
-setPos i j t@(Taula mat) color
-    | posValida i j t = (Taula insertaho)
-    | otherwise = t
-    where
-    insertaho = fst spliti ++ [novaFila] ++ drop 1 (snd spliti)
-    spliti = splitAt i mat
-    novaFila = fst splitj ++ [color] ++ drop 1 (snd splitj)
-    splitj = splitAt j (mat!!i)
 
 getPos:: Int -> Int -> TaulerJoc -> Int
 getPos i j t@(Taula mat)
-     | posValida i j t = (mat!!i)!!j
+     | posValid i j t = (mat!!i)!!j
      | otherwise = -1
 
-posValida::Int -> Int -> TaulerJoc -> Bool
-posValida i j (Taula mat) = i>0 && ((length mat)-1 > i) && j>0 && (length (mat!!i)-1 > j)
 
 {-a partir de un tauler, retorna el numero del jugador que ha guanyat, o -1 si encara
 no hi ha guanyador-}
@@ -165,10 +151,23 @@ possibles t@(Taula mat) = buildList (take (length mat) $ iterate (+1) 0) (take (
         buildList _ [] t= []
         buildList [] _ t= []
         buildList (x:xs) (y:ys) t
-            | getPos x y t == 0 && posValida x y t = [(x,y)]++buildList (x:xs) ys t ++ buildList xs (y:ys) t
+            | getPos x y t == 0 && posValid x y t = [(x,y)]++buildList (x:xs) ys t ++ buildList xs (y:ys) t
             | otherwise = buildList (x:xs) ys t ++ buildList xs (y:ys) t
 
 --tots els gameloops tenen com a parametre el tauler a considerar y el torn del jugador. gameloops = estrategies
+
+---------------------------------------
+
+--retorna els posibles moviments del tauler actual
+possibles2::TaulerJoc ->[((Int, Int),Int)]
+possibles2 t@(Taula mat) = buildList (take (length mat) $ iterate (+1) 0) (take (length (mat!!0)) $ iterate (+1) 0) t
+    where
+        buildList::[Int]->[Int]->TaulerJoc->[((Int, Int),Int)]
+        buildList _ [] t= []
+        buildList [] _ t= []
+        buildList (x:xs) (y:ys) t
+            | getPos x y t == 0 && posValid x y t = [((x,y),1)]++buildList (x:xs) ys t ++ buildList xs (y:ys) t
+            | otherwise = buildList (x:xs) ys t ++ buildList xs (y:ys) t
 
 
 gameLoop1 tauler turn
@@ -181,8 +180,8 @@ gameLoop1 tauler turn
     | otherwise = do
                 putStrLn ("Player "++show turn++" moves")
                 std<-newStdGen
-                let    newPos = (possibles tauler)!!(fst (genera std 0 ((length (possibles tauler))-1)))
-                let newT = makeMove (fst newPos) (snd newPos) tauler turn
+                let newPos = (possibles2 tauler)!!(fst (genera std 0 ((length (possibles tauler))-1))) -- escoge una jugada de las posibles jugadas a partir del rand
+                let newT = placeLine (fst (fst newPos)) (snd (fst newPos)) (snd newPos) tauler turn
                 putStrLn ("Moved: "++show newPos)
                 putStrLn $show newT
                 gameLoop1 newT (1+mod turn 2)
@@ -214,10 +213,6 @@ gameLoop2 tauler turn
                       putStrLn $show newT
                       gameLoop2 newT 1
 
-
-                      
-                
---------------------------------------------------
 
 mode1 = do
     putStrLn "Enter dimensions: "
