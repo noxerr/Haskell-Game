@@ -159,30 +159,35 @@ possibles t@(Taula mat) = buildList (take (length mat) $ iterate (+1) 0) (take (
 ---------------------------------------
 
 --retorna els posibles moviments del tauler actual
-possibles2::TaulerJoc ->[((Int, Int),Int)]
-possibles2 t@(Taula mat) = buildList (take (length mat) $ iterate (+1) 0) (take (length (mat!!0)) $ iterate (+1) 0) t
-    where
-        buildList::[Int]->[Int]->TaulerJoc->[((Int, Int),Int)]
-        buildList _ [] t= []
-        buildList [] _ t= []
-        buildList (x:xs) (y:ys) t
-            | getPos x y t == 0 && posValid x y t = [((x,y),1)]++buildList (x:xs) ys t ++ buildList xs (y:ys) t
-            | otherwise = buildList (x:xs) ys t ++ buildList xs (y:ys) t
-
+possiblesTiradas::TaulerJoc -> [((Int, Int),Int)]
+possiblesTiradas tauler@(Taula mat) = buildList 0 0
+    where 
+        buildList::Int -> Int -> [((Int, Int),Int)]
+        buildList i j  
+            | (j+j < lenC) && ((valorMatriz i j tauler) /= 3) = [((i, j),3 - (valorMatriz i j tauler))] ++ (buildList i (j+1))
+            | (i + i < lenR) && ((valorMatriz i 0 tauler) /= 3) = [((i, 0),3 - (valorMatriz i 0 tauler))] ++ (buildList (i+1) 1)
+            | otherwise = []
+        
+        lenC = length (mat!!0)
+        lenR = length mat
 
 gameLoop1 tauler turn
     | isFinished tauler /= -1 =do
                           putStrLn ("Winner : Player "++show (isFinished tauler))
                           putStrLn $ show tauler
-    | possibles tauler ==[] = do --comprova si hi ha tirades possibles
+    | possiblesTiradas tauler ==[] = do --comprova si hi ha tirades possibles
                         putStrLn ("Empat")
                         putStrLn $ show tauler
-    | otherwise = do
+    | otherwise = do --estrategia aleatoria
                 putStrLn ("Player "++show turn++" moves")
                 std<-newStdGen
-                let newPos = (possibles2 tauler)!!(fst (genera std 0 ((length (possibles tauler))-1))) -- escoge una jugada de las posibles jugadas a partir del rand
-                let newT = placeLine (fst (fst newPos)) (snd (fst newPos)) (snd newPos) tauler turn
-                putStrLn ("Moved: "++show newPos)
+                let newPos = (possiblesTiradas tauler)!!(fst (genera std 0 ((length (possiblesTiradas tauler))-1))) -- escoge una jugada de las posibles jugadas a partir del rand
+                let valorTipo = fst (genera2 std 0 (snd newPos))
+                let newPos2 = (fst newPos,valorTipo)
+                let newT = placeLine (fst (fst newPos)) (snd (fst newPos)) valorTipo tauler turn
+                
+                
+                putStrLn ("Moved: "++show newPos2)
                 putStrLn $show newT
                 gameLoop1 newT (1+mod turn 2)
                 
@@ -233,6 +238,13 @@ genera :: RandomGen s => s -> Int -> Int -> (Int,s)
 genera s lo hi = (x,s1)
     where
         (x,s1) = randomR (lo,hi) s
+        
+genera2 :: RandomGen s => s -> Int -> Int -> (Int,s)
+genera2 s lo hi 
+    | hi /= 3 = (hi,s1)
+    | otherwise = (x,s1)
+        where
+            (x,s1) = randomR (1,2) s
 
 modeSelector mode
     | mode ==1 = do mode1
