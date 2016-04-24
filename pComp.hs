@@ -65,10 +65,10 @@ setValor i j tipo tauler@(Taula mat) numPl
     | posValid i j tauler = (Taula (updateMatrix mat tipo (i+i,j+j)))
     | otherwise = tauler
         where
-            updateMatrix :: [[a]] -> a -> (Int, Int) -> [[a]]
+            updateMatrix :: [[Int]] -> Int -> (Int, Int) -> [[Int]]
             updateMatrix m x (r,c) =
               take r m ++
-              [take c (m !! r) ++ [x] ++ drop (c + 1) (m !! r)] ++
+              [take c (m !! r) ++ [(x + head (drop c (m !! r)))] ++ drop (c + 1) (m !! r)] ++
               drop (r + 1) m
             
         
@@ -76,11 +76,6 @@ posValid::Int -> Int -> TaulerJoc -> Bool
 posValid i j (Taula mat) = i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j)
         
 -----------------------------------------------------------------------------     
-        
-        
-makeMove::Int -> Int -> TaulerJoc -> Int-> TaulerJoc
-makeMove i j tauler color = tauler
-
 
 getPos:: Int -> Int -> TaulerJoc -> Int
 getPos i j t@(Taula mat)
@@ -143,16 +138,6 @@ takeAdjacents i j t@(Taula mat) color visited
         left = (i,(j-1))
         right = (i,(j+1))
 
---retorna els posibles moviments del tauler actual
-possibles::TaulerJoc ->[(Int,Int)]
-possibles t@(Taula mat) = buildList (take (length mat) $ iterate (+1) 0) (take (length (mat!!0)) $ iterate (+1) 0) t
-    where
-        buildList::[Int]->[Int]->TaulerJoc->[(Int,Int)]
-        buildList _ [] t= []
-        buildList [] _ t= []
-        buildList (x:xs) (y:ys) t
-            | getPos x y t == 0 && posValid x y t = [(x,y)]++buildList (x:xs) ys t ++ buildList xs (y:ys) t
-            | otherwise = buildList (x:xs) ys t ++ buildList xs (y:ys) t
 
 --tots els gameloops tenen com a parametre el tauler a considerar y el torn del jugador. gameloops = estrategies
 
@@ -164,9 +149,14 @@ possiblesTiradas tauler@(Taula mat) = buildList 0 0
     where 
         buildList::Int -> Int -> [((Int, Int),Int)]
         buildList i j  
-            | (j+j < lenC) && ((valorMatriz i j tauler) /= 3) = [((i, j),3 - (valorMatriz i j tauler))] ++ (buildList i (j+1))
-            | (i + i < lenR) && ((valorMatriz i 0 tauler) /= 3) = [((i, 0),3 - (valorMatriz i 0 tauler))] ++ (buildList (i+1) 1)
-            | otherwise = []
+            | (j+j == lenC-1) && (i + i == lenR-1) = [] -- ultima posicion de la matriz
+            | (j+j == lenC-1) && ((valorMatriz i j tauler) /= 2) = [((i, j),2)] ++ (buildList i (j+1)) -- ultima columna
+            | (j+j < lenC - 1) && (i + i == lenR-1) && ((valorMatriz i j tauler) /= 1) = [((i, j),1)] ++ (buildList i (j+1)) --ultima fila
+            | (j+j < lenC - 1) && (i + i < lenR-1) && ((valorMatriz i j tauler) /= 3) = [((i, j),3 - (valorMatriz i j tauler))] ++ (buildList i (j+1)) --no ultima fila
+            | (i + i + 2 == lenR-1) && ((valorMatriz (i+1) 0 tauler) /= 1) = [(((i+1), 0),1)] ++ (buildList (i+1) 1) -- ultima fila
+            | (i + i + 2 < lenR - 1) && ((valorMatriz (i+1) 0 tauler) /= 3) = [(((i+1), 0),3 - (valorMatriz (i+1) 0 tauler))] ++ (buildList (i+1) 1) -- no ultima fila
+            | (j+j < lenC-1) = buildList i (j+1)
+            | otherwise = buildList (i+1) 0
         
         lenC = length (mat!!0)
         lenR = length mat
@@ -182,7 +172,7 @@ gameLoop1 tauler turn
                 putStrLn ("Player "++show turn++" moves")
                 std<-newStdGen
                 let newPos = (possiblesTiradas tauler)!!(fst (genera std 0 ((length (possiblesTiradas tauler))-1))) -- escoge una jugada de las posibles jugadas a partir del rand
-                let valorTipo = fst (genera2 std 0 (snd newPos))
+                let valorTipo = fst (genera2 std (snd newPos))
                 let newPos2 = (fst newPos,valorTipo)
                 let newT = placeLine (fst (fst newPos)) (snd (fst newPos)) valorTipo tauler turn
                 
@@ -195,7 +185,7 @@ gameLoop2 tauler turn
     | isFinished tauler /= -1 =do
                           putStrLn ("Winner : Player "++show (isFinished tauler))
                           putStrLn $ show tauler
-    | possibles tauler ==[] = do
+    | possiblesTiradas tauler ==[] = do
                         putStrLn ("Empat")
                         putStrLn $ show tauler
     | turn==1 = do
@@ -205,18 +195,22 @@ gameLoop2 tauler turn
                 putStrLn "select new position"
                 x<-getLine
                 y<-getLine
-                let newT = (makeMove (read x ::Int) (read y::Int) tauler turn)
+                putStrLn "select type (1 = horizontal to right, 2 = vertical to down)"
+                z<-getLine
+                let newT = (placeLine (read x ::Int) (read y::Int) (read z::Int) tauler turn)
                 if newT == tauler
                     then gameLoop2 tauler turn
                     else gameLoop2 newT 2
     | otherwise = do
-                      putStrLn ("Player "++show turn++" moves")
-                      std<-newStdGen
-                      let    newPos = (possibles tauler)!!(fst (genera std 0 ((length (possibles tauler))-1)))
-                      let newT = makeMove (fst newPos) (snd newPos) tauler turn
-                      putStrLn "Moved: "
-                      putStrLn $show newT
-                      gameLoop2 newT 1
+                  putStrLn ("Player "++show turn++" moves")
+                  std<-newStdGen
+                  let newPos = (possiblesTiradas tauler)!!(fst (genera std 0 ((length (possiblesTiradas tauler))-1))) -- escoge una jugada de las posibles jugadas a partir del rand
+                  let valorTipo = fst (genera2 std (snd newPos))
+                  let newPos2 = (fst newPos,valorTipo)
+                  let newT = placeLine (fst (fst newPos)) (snd (fst newPos)) valorTipo tauler turn  
+                  putStrLn ("Moved: "++show newPos2)
+                  putStrLn $show newT
+                  gameLoop2 newT 1
 
 
 mode1 = do
@@ -239,8 +233,8 @@ genera s lo hi = (x,s1)
     where
         (x,s1) = randomR (lo,hi) s
         
-genera2 :: RandomGen s => s -> Int -> Int -> (Int,s)
-genera2 s lo hi 
+genera2 :: RandomGen s => s -> Int -> (Int,s)
+genera2 s hi 
     | hi /= 3 = (hi,s1)
     | otherwise = (x,s1)
         where
