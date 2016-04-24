@@ -50,7 +50,7 @@ buildTauler n m = (Taula (aux n m))
         
 placeLine::Int -> Int -> Int -> TaulerJoc -> Int-> TaulerJoc -- fila, columna, tipus linea, tauler, player
 placeLine i j tipo tauler numPl
-    | (posValid i j tauler) && (v /= tipo) && (v /= 3) && (tipo > 0 ) && (tipo < 3) = setValor i j tipo tauler numPl
+    | (posValid2 i j tipo tauler) && (v /= tipo) && (v /= 3) && (tipo > 0 ) && (tipo < 3) = setValor i j tipo tauler numPl
     | otherwise = tauler
         where
         v = valorMatriz i j tauler
@@ -74,7 +74,16 @@ setValor i j tipo tauler@(Taula mat) numPl
         
 posValid::Int -> Int -> TaulerJoc -> Bool
 posValid i j (Taula mat) = i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j)
-        
+
+posValid2::Int -> Int -> Int -> TaulerJoc -> Bool
+posValid2 i j tipo (Taula mat) 
+    | (j+j == lenC-1) && (i + i == lenR) = False -- ultima col y ultima fila
+    | j+j == lenC-1 = tipo /= 1 && i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j) -- ultima col
+    | i + i == lenR-1  = tipo /= 2 && i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j) -- ultima fila
+    | otherwise = i>=0 && ((length mat) > i+i) && j>=0 && (length (mat!!i) > j+j) -- no ultima fila
+    where 
+        lenC = length (mat!!0)
+        lenR = length mat
 -----------------------------------------------------------------------------     
 
 getPos:: Int -> Int -> TaulerJoc -> Int
@@ -199,7 +208,10 @@ gameLoop2 tauler turn
                 z<-getLine
                 let newT = (placeLine (read x ::Int) (read y::Int) (read z::Int) tauler turn)
                 if newT == tauler
-                    then gameLoop2 tauler turn
+                    then do
+                        putStrLn ("Repeat move, you typed wrong coordinates")
+                        gameLoop2 tauler turn
+                        
                     else gameLoop2 newT 2
     | otherwise = do
                   putStrLn ("Player "++show turn++" moves")

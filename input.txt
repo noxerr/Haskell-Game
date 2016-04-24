@@ -1,4 +1,19 @@
 let m = [[3,0,3,0,3,0,2],[0,0,0,0,0,0,0],[3,0,3,0,3,0,2],[0,0,0,0,0,0,2],[3,0,3,0,3,0,2],[0,0,0,0,0,0,0],[1,0,1,0,1,0,0]]
 let t = Taula m
 
-let tt = buildTauler 4 4
+let tt@(Taula mat) = buildTauler 4 4
+length (mat!!0)
+
+let t2 = placeLine 1 1 1 tt 1 
+let t1 = placeLine 1 1 2 t2 2 
+let t2 = placeLine 2 0 1 t1 1 
+let t1 = placeLine 0 0 1 t2 2 
+let t2 = placeLine 1 0 2 t1 1 
+let t1 = placeLine 2 0 2 t2 2 
+let t2 = placeLine 0 0 2 t1 1 
+let t1 = placeLine 1 0 1 t2 2 
+
+possiblesTiradas 
+let (Taula m) = t2
+
+--comprobar k el user no tire mal (xk sino no acaba la partida) o hacer k si el player 1 tira mal se joda y pase al p2
